@@ -5,3 +5,33 @@ services:
     # ここで「このコンテナに .env の中身を渡す」と宣言
     env_file:
       - .env
+    volumes:
+      - mariadb_data:/var/lib/mysql
+  wordpress:
+    container_name: inception-wordpress
+    build: ./requirements/wordpress
+    env_file:
+      - .env
+    volumes:
+      - wordpress_data:/var/www/html
+  nginx:
+    container_name: inception-nginx
+    build: ./requirements/nginx
+    volumes:
+      - wordpress_data:/var/www/html
+    ports:
+      - "443:443"
+
+volumes:
+  mariadb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/kharuya/data/mariadb
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/kharuya/data/wordpress
