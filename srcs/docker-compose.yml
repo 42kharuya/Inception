@@ -1,0 +1,7 @@
+services:
+  mariadb:
+    container_name: inception-mariadb
+    build: ./requirements/mariadb
+    # ここで「このコンテナに .env の中身を渡す」と宣言
+    env_file:
+      - .env
