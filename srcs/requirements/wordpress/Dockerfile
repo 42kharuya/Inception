@@ -31,6 +31,7 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
 
 # WordPressがなければインストールし、あればPHP-FPMを起動するスクリプトを設定
 COPY ./tools/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # スクリプトをENTRYPOINTに指定
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
