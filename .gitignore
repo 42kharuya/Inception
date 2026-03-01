@@ -1,1 +1,27 @@
-mariadb
+# Secrets and credentials
+secrets/
+credentials.txt
+db_password.txt
+db_root_password.txt
+
+# Data directories
+data/
+
+# Environment files (sensitive data)
+srcs/.env.local
+srcs/.env.*.local
+
+# OS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Docker
+.docker/
+docker-compose.override.yml
