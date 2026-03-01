@@ -1,26 +1,45 @@
 services:
   mariadb:
-    container_name: inception-mariadb
+    container_name: mariadb
     build: ./requirements/mariadb
     # ここで「このコンテナに .env の中身を渡す」と宣言
     env_file:
       - .env
+    secrets:
+      - db_root_password
+      - db_password
     volumes:
       - mariadb_data:/var/lib/mysql
+    networks:
+      - inception_network
+    restart: always
   wordpress:
-    container_name: inception-wordpress
+    container_name: wordpress
     build: ./requirements/wordpress
     env_file:
       - .env
+    secrets:
+      - db_password
+      - credentials
     volumes:
       - wordpress_data:/var/www/html
+    networks:
+      - inception_network
+    restart: always
+    depends_on:
+      - mariadb
   nginx:
-    container_name: inception-nginx
+    container_name: nginx
     build: ./requirements/nginx
     volumes:
       - wordpress_data:/var/www/html
     ports:
       - "443:443"
+    networks:
+      - inception_network
+    restart: always
+    depends_on:
+      - wordpress
 
 volumes:
   mariadb_data:
@@ -35,3 +54,15 @@ volumes:
       type: none
       o: bind
       device: /home/kharuya/data/wordpress
+
+networks:
+  inception_network:
+    driver: bridge
+
+secrets:
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  db_password:
+    file: ../secrets/db_password.txt
+  credentials:
+    file: ../secrets/credentials.txt
