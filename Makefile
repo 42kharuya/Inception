@@ -14,8 +14,8 @@ data-dir:
 	@echo "Creating data directories at $(DATA_DIR)..."
 	@mkdir -p $(DATA_DIR)/mariadb
 	@mkdir -p $(DATA_DIR)/wordpress
-	@chmod 755 $(DATA_DIR)/mariadb
-	@chmod 755 $(DATA_DIR)/wordpress
+	@sudo chmod 755 $(DATA_DIR)/mariadb
+	@sudo chmod 755 $(DATA_DIR)/wordpress
 	@echo "Data directories created successfully!"
 
 # Build and start all containers
@@ -42,7 +42,7 @@ clean:
 # Remove everything including data directories
 fclean: clean
 	@echo "Removing all data..."
-	@rm -rf $(DATA_DIR)
+	@sudo rm -rf $(DATA_DIR)
 	@echo "All data removed!"
 
 # Rebuild containers
