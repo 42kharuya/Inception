@@ -1,6 +1,24 @@
 #!/bin/bash
 set -e
 
+# Docker Secretsから機密情報を読み取る
+load_secrets() {
+	if [[ -f "/run/secrets/db_password" ]]; then
+		MYSQL_PASSWORD=$(cat /run/secrets/db_password)
+		export MYSQL_PASSWORD
+	fi
+	
+	if [[ -f "/run/secrets/credentials" ]]; then
+		# credentialsファイルから読み取り
+		source /run/secrets/credentials
+		export WP_ADMIN_PASSWORD
+		export WP_USER_PASSWORD
+	fi
+}
+
+# Secretsをロード
+load_secrets
+
 # 1. MariaDBが起動するまで待機（これがないと接続エラーになる）
 # mariadb-clientを入れているので、mariadb-admin ping で生存確認ができる
 until mariadb-admin ping -h"mariadb" --silent; do
