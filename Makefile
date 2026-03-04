@@ -1,57 +1,54 @@
 .PHONY: all up down restart clean help data-dir
 
-# Variables
+# 変数
 USERNAME := $(shell whoami)
 DATA_DIR := /home/$(USERNAME)/data
-DOCKER_COMPOSE := cd srcs && docker compose
 DOCKER_COMPOSE_CMD := docker compose -f srcs/docker-compose.yml
 
-# Default target (up already depends on data-dir, so dependencies are automatically resolved)
+# デフォルトターゲット
 all: up
 
-# Create data directories for volumes
+# ボリューム用のデータディレクトリを作成
 data-dir:
 	@echo "Creating data directories at $(DATA_DIR)..."
-	@mkdir -p $(DATA_DIR)/mariadb
-	@mkdir -p $(DATA_DIR)/wordpress
-	@sudo chmod 755 $(DATA_DIR)/mariadb
-	@sudo chmod 755 $(DATA_DIR)/wordpress
+	@mkdir -m 755 -p $(DATA_DIR)/mariadb
+	@mkdir -m 755 -p $(DATA_DIR)/wordpress
 	@echo "Data directories created successfully!"
 
-# Build and start all containers
+# コンテナをビルドして起動（--build：イメージをプルせずにビルドする）
 up: data-dir
 	@echo "Building and starting containers..."
 	@$(DOCKER_COMPOSE_CMD) up -d --build
 	@echo "Containers started successfully!"
 
-# Stop all containers
+# すべてのコンテナを停止
 down:
 	@echo "Stopping containers..."
 	@$(DOCKER_COMPOSE_CMD) down
 	@echo "Containers stopped!"
 
-# Restart all containers
+# コンテナを再起動（down → up）
 restart: down up
 
-# Remove containers and volumes (down -v includes stopping containers)
+# コンテナとボリュームを削除（down -v はコンテナ停止を含む）
 clean:
 	@echo "Cleaning up containers and volumes..."
 	@$(DOCKER_COMPOSE_CMD) down -v
 	@echo "Cleaning complete!"
 
-# Remove everything including data directories
+# すべてを削除（データディレクトリも含む）
 fclean: clean
 	@echo "Removing all data..."
 	@sudo rm -rf $(DATA_DIR)
 	@echo "All data removed!"
 
-# Rebuild containers
+# コンテナを再ビルド
 rebuild: down
 	@echo "Rebuilding containers..."
 	@$(DOCKER_COMPOSE_CMD) build --no-cache
 	@echo "Build complete! Run 'make up' to start containers."
 
-# Display help
+# ヘルプを表示
 help:
 	@echo "Available targets:"
 	@echo "  make all       - Create data dirs, build and start containers"
