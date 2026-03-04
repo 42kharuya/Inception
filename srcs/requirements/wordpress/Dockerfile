@@ -6,7 +6,8 @@ FROM debian:bookworm
 # php-cli: コマンドライン用。ターミナルでwpコマンドを叩いたときに、その命令を実行するために裏側で呼び出される。
 # mariadb-client: コンテナ内からMariaDBに接続確認したり、WP-CLIを動かすために必要。
 # curl: WordPress本体やWP-CLIをダウンロードするために使う。
-RUN apt-get update && apt-get install -y mariadb-client php-fpm php-mysql curl php-cli vim
+# netcat-openbsd: TCP接続確認用
+RUN apt-get update && apt-get install -y mariadb-client php-fpm php-mysql curl php-cli vim netcat-openbsd
 
 # PIDディレクトリ作成
 RUN mkdir -p /run/php

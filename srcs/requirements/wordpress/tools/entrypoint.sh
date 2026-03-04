@@ -7,7 +7,7 @@ load_secrets() {
 		MYSQL_PASSWORD=$(cat /run/secrets/db_password)
 		export MYSQL_PASSWORD
 	fi
-	
+
 	if [[ -f "/run/secrets/credentials" ]]; then
 		# credentialsファイルから読み取り
 		source /run/secrets/credentials
@@ -20,11 +20,12 @@ load_secrets() {
 load_secrets
 
 # 1. MariaDBが起動するまで待機（これがないと接続エラーになる）
-# mariadb-clientを入れているので、mariadb-admin ping で生存確認ができる
-until mariadb-admin ping -h"mariadb" --silent; do
+# TCP接続が可能になるまで待つ
+until nc -z mariadb 3306; do
     echo "Waiting for MariaDB..."
     sleep 2
 done
+echo "MariaDB is ready!"
 
 # 2. WordPressが未インストールの場合のみセットアップを実行
 if [ ! -f /var/www/html/wp-config.php ]; then
