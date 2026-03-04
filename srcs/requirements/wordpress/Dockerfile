@@ -1,13 +1,14 @@
 FROM debian:bookworm
 
-# MariaDB（クライアント）をインストール (vimは動作確認のためインストール)
-# php-fpm: PHPを実行する本体。
-# php-mysql: PHPがMariaDBと会話するために必須のプラグイン。
-# php-cli: コマンドライン用。ターミナルでwpコマンドを叩いたときに、その命令を実行するために裏側で呼び出される。
-# mariadb-client: コンテナ内からMariaDBに接続確認したり、WP-CLIを動かすために必要。
-# curl: WordPress本体やWP-CLIをダウンロードするために使う。
-# netcat-openbsd: TCP接続確認用
-RUN apt-get update && apt-get install -y mariadb-client php-fpm php-mysql curl php-cli vim netcat-openbsd
+# php-fpm: PHP実行本体
+# php-mysql: PHPからMariaDB接続
+# php-cli: WP-CLI実行
+# mariadb-client: DB接続確認
+# curl: WordPress本体とWP-CLI取得
+# netcat-openbsd: TCP接続確認
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	mariadb-client php-fpm php-mysql curl php-cli netcat-openbsd ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
 
 # PIDディレクトリ作成
 RUN mkdir -p /run/php

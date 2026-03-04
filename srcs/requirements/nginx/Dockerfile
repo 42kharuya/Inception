@@ -1,6 +1,7 @@
 FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y nginx openssl
+RUN apt-get update && apt-get install -y --no-install-recommends nginx openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # SSL証明書を保存するフォルダを作成
 RUN mkdir -p /etc/nginx/ssl
