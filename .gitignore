@@ -4,9 +4,6 @@ credentials.txt
 db_password.txt
 db_root_password.txt
 
-# Data directories
-data/
-
 # Environment files (sensitive data)
 srcs/.env.local
 srcs/.env.*.local
