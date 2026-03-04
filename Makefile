@@ -11,8 +11,8 @@ all: up
 # ボリューム用のデータディレクトリを作成
 data-dir:
 	@echo "Creating data directories at $(DATA_DIR)..."
-	@mkdir -m 755 -p $(DATA_DIR)/mariadb
-	@mkdir -m 755 -p $(DATA_DIR)/wordpress
+	@mkdir -m 755 -p $(DATA_DIR)/DB
+	@mkdir -m 755 -p $(DATA_DIR)/WordPress
 	@echo "Data directories created successfully!"
 
 # コンテナをビルドして起動（--build：イメージをプルせずにビルドする）
