@@ -130,7 +130,7 @@ shutdown_bootstrap_server() {
 		mariadb-admin --protocol=socket -uroot shutdown
 	fi
 
-	ブートストラッププロセス（一時起動したサーバ）のクリーンアップ
+	# ブートストラッププロセス（一時起動したサーバ）のクリーンアップ
 	wait "${BOOTSTRAP_PID}" 2>/dev/null || true
 }
 
@@ -154,8 +154,8 @@ main() {
 	# 4. 一時起動したサーバを停止して、本番プロセスとして再起動
 	shutdown_bootstrap_server
 
-	# 本番起動（mysqld_safe は MariaDB の標準的な起動コマンドです）
-	exec mysqld_safe
+	# 本番起動（Dockerfile の CMD をそのまま実行）
+	exec "$@"
 }
 
 main "$@"
