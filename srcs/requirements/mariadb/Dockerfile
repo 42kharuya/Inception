@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y mariadb-server vim
 
 # Maria DBのデフォルト設定では、bind-address = 127.0.0.1で自分しかアクセスできない。
 # bind-address = 0.0.0.0ですべてのネットワークインターフェースを待ち受けるようにする。
-RUN sed -i 's/bind-address = 127.0.0.1/bind-address = 0.0.0.0/g' /etc/mysql/mariadb.conf.d/50-server.cnf
+RUN sed -i 's/^bind-address\s*=.*/bind-address = 0.0.0.0/' /etc/mysql/mariadb.conf.d/50-server.cnf
 
 # Maria DBの初期化設定とWordPress用テーブル作成のスクリプトをコンテナにコピー
 COPY ./tools/entrypoint.sh /usr/local/bin
