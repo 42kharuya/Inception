@@ -56,14 +56,14 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /home/kharuya/data/DB
+      device: /home/${LOGIN}/data/DB
   WordPress:
     name: WordPress
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: /home/kharuya/data/WordPress
+      device: /home/${LOGIN}/data/WordPress
 
 networks:
   inception_network:
