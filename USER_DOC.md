@@ -1,36 +1,176 @@
-## USER_DOC.md
 
-### What services are provided
-This stack provides:
-- HTTPS web entrypoint (NGINX on port 443)
-- WordPress application (PHP-FPM)
-- MariaDB database
+# USER_DOC — User / Administrator Documentation
 
-### Start and stop
-- Start/build all services: `make up`
-- Stop services: `make down`
-- Remove containers + volumes: `make clean`
-- Full cleanup including host data: `make fclean`
+This document explains how to operate the Inception stack as an end user or administrator.
 
-### Access website and admin panel
-1. Ensure your host maps domain to local IP:
-   - `127.0.0.1 kharuya.42.fr`
-2. Open browser:
-   - Site: `https://kharuya.42.fr`
-   - Admin: `https://kharuya.42.fr/wp-admin`
+## 1) What services are provided?
 
-### Credentials location and management
-- Non-secret config is in [srcs/.env](srcs/.env).
-- Passwords are in [secrets](secrets) files:
-  - DB root password
-  - DB app password
-  - WordPress admin/user passwords (`credentials.txt`)
+This stack provides a standard WordPress website behind TLS:
 
-Do not publish secrets to remote repositories.
+- **Website (HTTPS)**: served by **nginx** on port **443**.
+- **WordPress application**: runs on **PHP-FPM** inside the **wordpress** container (internal port **9000**).
+- **Database**: **mariadb** container (internal port **3306**).
 
-### Check services are healthy
-- `docker compose -f srcs/docker-compose.yml ps`
-- `docker compose -f srcs/docker-compose.yml logs -f`
-- `curl -kI https://kharuya.42.fr`
+Only nginx is exposed to the host. WordPress and MariaDB are reachable only inside the Docker network.
 
-Expected result: HTTPS responds on port 443 and WordPress login page is reachable.
+## 2) Start / stop the project
+
+All commands are run from the repository root.
+
+### Start
+
+```bash
+make up
+```
+
+This will:
+
+- Create persistent host directories under `/home/${LOGIN}/data`.
+- Build images and start containers in the background.
+
+### Stop
+
+```bash
+make down
+```
+
+### Restart
+
+```bash
+make restart
+```
+
+### Remove containers and volumes
+
+```bash
+make clean
+```
+
+### Full reset (also deletes saved data)
+
+```bash
+make fclean
+```
+
+## 3) Access the website and admin panel
+
+### 3.1 Domain name
+
+The site URL is driven by `DOMAIN_NAME` in `srcs/.env` (commonly `<login>.42.fr`).
+
+Make sure your domain resolves to the machine running Docker (VM IP is typical). Example:
+
+```bash
+sudo sh -c 'echo "<VM_IP>  <login>.42.fr" >> /etc/hosts'
+```
+
+### 3.2 Website
+
+Open in your browser:
+
+- `https://<DOMAIN_NAME>/`
+
+Note: nginx generates a **self-signed certificate** at container start. Your browser will show a security warning; you can proceed for local testing.
+
+### 3.3 WordPress admin panel
+
+Open:
+
+- `https://<DOMAIN_NAME>/wp-admin/`
+
+Log in with the admin credentials described in the next section.
+
+## 4) Locate and manage credentials
+
+This project intentionally separates **non-secret configuration** (environment variables) and **passwords** (Docker secrets).
+
+### 4.1 Non-secret config (environment)
+
+File: `srcs/.env`
+
+Contains:
+
+- Domain name and site metadata
+- Database name / username
+- WordPress usernames + emails
+
+### 4.2 Passwords (Docker secrets)
+
+Folder: `secrets/`
+
+Security note: these files should be treated as local-only and should not contain real credentials in a public repository.
+
+- `secrets/db_root_password.txt`: MariaDB root password
+- `secrets/db_password.txt`: MariaDB application user password
+- `secrets/credentials.txt`: WordPress passwords as variables:
+	- `WP_ADMIN_PASSWORD=...`
+	- `WP_USER_PASSWORD=...`
+
+Inside containers, these are mounted as files under `/run/secrets/`.
+
+### 4.3 Rotating credentials (safe procedure)
+
+Because WordPress and MariaDB data is persisted on disk, simply changing secret files might not be enough to fully “re-provision” users. Recommended approaches:
+
+- **Change WordPress user passwords via WordPress admin UI** (preferred for a running site).
+- For a complete clean re-install of both DB and WordPress:
+
+```bash
+make fclean
+make up
+```
+
+This deletes `/home/${LOGIN}/data` and forces the entrypoints to bootstrap from scratch.
+
+## 5) Check that services are running correctly
+
+### 5.1 Basic status
+
+```bash
+docker compose -f srcs/docker-compose.yml ps
+```
+
+You should see three services: `mariadb`, `wordpress`, `nginx`.
+
+### 5.2 Healthchecks
+
+This project configures healthchecks for MariaDB and WordPress. nginx starts only after WordPress is healthy.
+
+```bash
+docker inspect --format '{{.State.Health.Status}}' mariadb
+docker inspect --format '{{.State.Health.Status}}' wordpress
+```
+
+### 5.3 Logs
+
+```bash
+docker compose -f srcs/docker-compose.yml logs -f
+```
+
+If something fails, check service-specific logs:
+
+```bash
+docker compose -f srcs/docker-compose.yml logs -f mariadb
+docker compose -f srcs/docker-compose.yml logs -f wordpress
+docker compose -f srcs/docker-compose.yml logs -f nginx
+```
+
+### 5.4 HTTP(S) check from CLI
+
+Self-signed TLS requires `-k` (insecure) for curl:
+
+```bash
+curl -kI https://<DOMAIN_NAME>/
+```
+
+Expected: an HTTP response (usually `200`/`301`/`302`).
+
+## 6) Where is my data stored?
+
+The stack persists data on the Docker host under:
+
+- Database files: `/home/${LOGIN}/data/DB`
+- WordPress files: `/home/${LOGIN}/data/WordPress`
+
+These directories are used by named volumes `DB` and `WordPress` configured in Compose.
+
