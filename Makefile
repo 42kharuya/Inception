@@ -1,8 +1,14 @@
 .PHONY: all up down restart clean help data-dir
 
 # 変数
-USERNAME := $(shell whoami)
-DATA_DIR := /home/$(USERNAME)/data
+-include srcs/.env
+
+# LOGIN は必須（srcs/.env に定義する）
+ifndef LOGIN
+	$(error LOGIN is not set. Define LOGIN in srcs/.env)
+endif
+
+DATA_DIR := /home/$(LOGIN)/data
 DOCKER_COMPOSE_CMD := docker compose -f srcs/docker-compose.yml
 
 # デフォルトターゲット
