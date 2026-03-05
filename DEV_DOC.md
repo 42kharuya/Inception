@@ -1,47 +1,269 @@
-## DEV_DOC.md
 
-### 1) Set up environment from scratch
-#### Prerequisites
-- Linux VM
-- Docker Engine + Docker Compose plugin
-- `sudo` privileges
+# DEV_DOC — Developer Documentation
 
-#### Required files
-- Compose and Dockerfiles under [srcs](srcs)
-- Environment variables in [srcs/.env](srcs/.env)
-- Runtime secrets under [secrets](secrets):
-  - `db_root_password.txt`
-  - `db_password.txt`
-  - `credentials.txt`
+This document explains how to set up, build, run, and operate this Inception stack as a developer.
 
-`credentials.txt` must export:
-- `WP_ADMIN_PASSWORD`
-- `WP_USER_PASSWORD`
+## 1) What this project is (developer view)
 
-### 2) Build and launch with Makefile + Compose
-- `make up`: creates `/home/<login>/data/*`, builds images, starts containers
-- `make down`: stops/removes containers
-- `make clean`: `down -v`
-- `make fclean`: `clean` + removes `/home/<login>/data`
-- `make rebuild`: rebuild images without cache
+This repository defines a minimal WordPress infrastructure using Docker Compose:
 
-Main command wrapper is defined in [Makefile](Makefile#L6).
+- **nginx**: the only public entrypoint, serves HTTPS on port 443 and forwards PHP requests to PHP-FPM.
+- **wordpress**: PHP-FPM + WP-CLI; downloads/configures WordPress on first run.
+- **mariadb**: database backend.
 
-### 3) Useful operations
-- Check container status: `docker compose -f srcs/docker-compose.yml ps`
-- Follow logs: `docker compose -f srcs/docker-compose.yml logs -f`
-- Rebuild one service: `docker compose -f srcs/docker-compose.yml build <service>`
-- Inspect network: `docker network inspect inception_network`
-- Inspect volumes: `docker volume ls`
+Key implementation files:
 
-### 4) Data storage and persistence
-- Database data: `/home/<login>/data/DB`
-- WordPress files: `/home/<login>/data/WordPress`
+- `srcs/docker-compose.yml`: Compose stack definition (services, volumes, network, secrets, healthchecks).
+- `Makefile`: the project’s main interface (`make up`, `make down`, etc.).
+- `srcs/requirements/*/Dockerfile`: per-service images built from Debian bookworm.
+- `srcs/requirements/*/tools/entrypoint.sh`: runtime initialization logic (idempotent setup).
 
-Volume declarations live in [srcs/docker-compose.yml](srcs/docker-compose.yml#L52-L66).
-They persist outside container lifecycle and survive restarts/recreation.
+## 2) Prerequisites
 
-### 5) Service-specific notes
-- MariaDB initialization logic: [srcs/requirements/mariadb/tools/entrypoint.sh](srcs/requirements/mariadb/tools/entrypoint.sh)
-- WordPress bootstrap logic: [srcs/requirements/wordpress/tools/entrypoint.sh](srcs/requirements/wordpress/tools/entrypoint.sh)
-- TLS reverse proxy config: [srcs/requirements/nginx/conf/nginx.conf](srcs/requirements/nginx/conf/nginx.conf)
+### System / OS
+
+- Linux host (the project stores persistent data under `/home/<LOGIN>/data`).
+- A VM is typically used for the 42 evaluation.
+
+### Required software
+
+- Docker Engine
+- Docker Compose v2 (the `docker compose` subcommand)
+- GNU Make
+
+Quick checks:
+
+```bash
+docker --version
+docker compose version
+make --version
+```
+
+### Domain name resolution (required for TLS + WordPress URLs)
+
+The stack expects a domain name (commonly `<login>.42.fr`) that resolves to the VM/host where Docker runs.
+
+For local testing, you can map the domain to your VM IP (recommended) or to `127.0.0.1` (only if you access from the same host):
+
+```bash
+sudo sh -c 'echo "<VM_IP>  <login>.42.fr" >> /etc/hosts'
+```
+
+## 3) Configuration files and secrets
+
+### 3.1 Environment variables (`srcs/.env`)
+
+The Makefile and Compose rely on `srcs/.env`.
+
+Important: `LOGIN` is mandatory. The Makefile will stop if it is missing.
+
+Typical variables used by the stack:
+
+- `LOGIN`: your UNIX login; used to build the persistent data path `/home/${LOGIN}/data`.
+- `DOMAIN_NAME`: domain served by nginx and used as the WordPress site URL.
+- `MYSQL_DATABASE`, `MYSQL_USER`: MariaDB database and user.
+- `SITE_TITLE`: WordPress site title.
+- `WP_ADMIN_USER`, `WP_ADMIN_EMAIL`: WordPress admin account (username must not contain `admin`, `Admin`, `administrator`, etc. per subject).
+- `WP_USER`, `WP_USER_EMAIL`: WordPress “regular” user.
+
+Notes:
+
+- Passwords are intentionally not stored in `srcs/.env` in this implementation; they are read from Docker secrets.
+
+### 3.2 Docker secrets (`secrets/*`)
+
+Secrets are provided to containers via Docker Compose `secrets:`. They are mounted as files under `/run/secrets/<name>`.
+
+Security note:
+
+- Treat the `secrets/` directory as **local-only**. Do not publish real passwords in a public repository.
+- For submissions, it is common to keep secret *values* out of git (for example via `.gitignore`) and recreate them locally.
+
+Secrets used:
+
+- `secrets/db_root_password.txt` → `/run/secrets/db_root_password` (MariaDB root password)
+- `secrets/db_password.txt` → `/run/secrets/db_password` (application DB user password)
+- `secrets/credentials.txt` → `/run/secrets/credentials` (WordPress passwords as shell variables)
+
+`secrets/credentials.txt` is sourced by the WordPress entrypoint and must define:
+
+- `WP_ADMIN_PASSWORD=...`
+- `WP_USER_PASSWORD=...`
+
+### 3.3 Where secrets are referenced in code
+
+- MariaDB healthcheck reads the root password from `/run/secrets/db_root_password`.
+- MariaDB entrypoint exports `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD` from the secret files.
+- WordPress entrypoint exports `MYSQL_PASSWORD` from `db_password` and loads `WP_ADMIN_PASSWORD` / `WP_USER_PASSWORD` from `credentials`.
+
+## 4) Build & launch (Makefile + Compose)
+
+### 4.1 Default workflow
+
+From the repository root:
+
+```bash
+make up
+```
+
+What it does:
+
+1) Loads `srcs/.env` (Makefile `-include srcs/.env`).
+2) Creates host directories:
+	 - `/home/${LOGIN}/data/DB`
+	 - `/home/${LOGIN}/data/WordPress`
+3) Runs `docker compose -f srcs/docker-compose.yml up -d --build`.
+
+### 4.2 Stop / restart
+
+```bash
+make down
+make restart
+```
+
+### 4.3 Clean / full clean
+
+- Remove containers + named volumes (data may be removed depending on volume configuration):
+
+```bash
+make clean
+```
+
+- Additionally delete the host data directory `/home/${LOGIN}/data`:
+
+```bash
+make fclean
+```
+
+### 4.4 Rebuild images without cache
+
+```bash
+make rebuild
+make up
+```
+
+## 5) Operational commands (containers, logs, volumes)
+
+The Makefile wraps Compose, but you can also use `docker compose -f srcs/docker-compose.yml ...` directly.
+
+### 5.1 Inspect running services
+
+```bash
+docker compose -f srcs/docker-compose.yml ps
+docker compose -f srcs/docker-compose.yml top
+```
+
+### 5.2 Logs
+
+```bash
+docker compose -f srcs/docker-compose.yml logs -f
+docker compose -f srcs/docker-compose.yml logs -f nginx
+docker compose -f srcs/docker-compose.yml logs -f wordpress
+docker compose -f srcs/docker-compose.yml logs -f mariadb
+```
+
+### 5.3 Shell into containers
+
+```bash
+docker exec -it nginx sh
+docker exec -it wordpress bash
+docker exec -it mariadb bash
+```
+
+### 5.4 Health status
+
+This project uses Compose healthchecks and `depends_on: condition: service_healthy`.
+
+```bash
+docker inspect --format '{{json .State.Health}}' mariadb | jq
+docker inspect --format '{{json .State.Health}}' wordpress | jq
+```
+
+If you do not have `jq`, remove the pipe.
+
+### 5.5 Volumes and where the data lives
+
+Compose defines two named volumes:
+
+- `DB` mounted to `/var/lib/mysql` (MariaDB data dir)
+- `WordPress` mounted to `/var/www/html` (WordPress files)
+
+In `srcs/docker-compose.yml`, both are configured with the `local` volume driver and `driver_opts` to store data under:
+
+- `/home/${LOGIN}/data/DB`
+- `/home/${LOGIN}/data/WordPress`
+
+Useful commands:
+
+```bash
+docker volume ls
+docker volume inspect DB
+docker volume inspect WordPress
+ls -la /home/${LOGIN}/data
+```
+
+### 5.6 Network
+
+All services are attached to a dedicated bridge network named `inception_network`.
+
+```bash
+docker network ls
+docker network inspect inception_network
+```
+
+## 6) Service internals (what happens on first run)
+
+### 6.1 MariaDB (`mariadb`)
+
+Entrypoint behavior:
+
+- Reads secrets into `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD`.
+- Starts a temporary MariaDB instance (socket-only) to initialize:
+	- Creates database `MYSQL_DATABASE` (if missing)
+	- Creates user `MYSQL_USER` and grants privileges
+	- Sets root password
+- Shuts down the bootstrap server and starts `mysqld_safe --user=mysql`.
+
+### 6.2 WordPress (`wordpress`)
+
+Entrypoint behavior:
+
+- Reads secrets (`MYSQL_PASSWORD`, `WP_ADMIN_PASSWORD`, `WP_USER_PASSWORD`).
+- Validates required environment variables.
+- If `/var/www/html/wp-config.php` is missing:
+	- Downloads WordPress (`wp core download`)
+	- Creates `wp-config.php` (`wp config create`)
+	- Installs the site (`wp core install`)
+	- Creates the regular user if missing (`wp user create`)
+- Starts PHP-FPM in the foreground on `0.0.0.0:9000`.
+
+### 6.3 nginx (`nginx`)
+
+Entrypoint behavior:
+
+- Requires `DOMAIN_NAME`.
+- Generates a self-signed certificate under `/etc/nginx/ssl` with CN/SAN = `DOMAIN_NAME`.
+- Renders the nginx config from a template using `envsubst`.
+- Starts nginx in the foreground.
+
+## 7) Data persistence and lifecycle
+
+### What persists
+
+- MariaDB data: host directory `/home/${LOGIN}/data/DB`.
+- WordPress files (including uploaded media and `wp-config.php`): host directory `/home/${LOGIN}/data/WordPress`.
+
+### What is recreated
+
+- Containers are ephemeral; you can safely recreate them.
+- Images can be rebuilt (`make rebuild`).
+
+### Resetting the stack
+
+If you want to force re-initialization (fresh DB + fresh WP install):
+
+```bash
+make fclean
+make up
+```
+
