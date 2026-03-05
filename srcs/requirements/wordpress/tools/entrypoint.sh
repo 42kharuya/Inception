@@ -5,9 +5,8 @@
 # 機能：
 #   1. Docker Secretsから機密情報（パスワード）を読み込む
 #   2. 必須の環境変数をすべて確認する
-#   3. MariaDBが起動するまで待機する
-#   4. WordPressがまだインストールされていない場合、WP-CLIで初期化する
-#   5. PHP-FPMをフォアグラウンドで起動する（PID 1として）
+#   3. WordPressがまだインストールされていない場合、WP-CLIで初期化する
+#   4. PHP-FPMをフォアグラウンドで起動する（PID 1として）
 
 set -euo pipefail
 
@@ -17,8 +16,6 @@ set -euo pipefail
 DB_HOST="mariadb"      # MariaDBサービス名（docker-compose.ymlのservice名）
 DB_PORT="3306"         # MariaDBのポート番号
 WP_DIR="/var/www/html" # WordPressがインストールされるディレクトリ
-MAX_DB_WAIT=60         # DB起動確認の最大試行回数（秒）
-SLEEP_SEC=2            # DB確認の間隔（秒）
 
 # ========================================
 # エラーハンドリング関数
@@ -67,30 +64,6 @@ load_secrets() {
 }
 
 # ========================================
-# MariaDB起動待機関数
-# ========================================
-# MariaDBコンテナが起動して TCP ポート 3306 で接続可能になるまで待つ
-# 無限待機を防ぐため、MAX_DB_WAIT 回まで再試行し、その後エラー終了
-wait_for_mariadb() {
-	local i
-	# ループ回数をカウント（1 から MAX_DB_WAIT まで）
-	for i in $(seq 1 "${MAX_DB_WAIT}"); do
-		# nc (netcat): TCP接続テスト
-		# -z: 接続してすぐに切断（ポートが開いているか確認）
-		# ${DB_HOST} ${DB_PORT}: 接続先と口
-		if nc -z "${DB_HOST}" "${DB_PORT}"; then
-			echo "MariaDB is ready."
-			return 0
-		fi
-		# まだ接続できない場合、進捗を出力して待機
-		echo "Waiting for MariaDB (${i}/${MAX_DB_WAIT})..."
-		sleep "${SLEEP_SEC}"
-	done
-	# MAX_DB_WAIT 回の試行後も接続できない場合、エラー終了
-	error "MariaDB is not reachable at ${DB_HOST}:${DB_PORT}"
-}
-
-# ========================================
 # WordPress一般ユーザーの冪等作成関数
 # ========================================
 # 一般ユーザーが既に存在すれば作成しない（べき等性）
@@ -132,10 +105,7 @@ main() {
 	require_env WP_USER_EMAIL
 	require_env WP_USER_PASSWORD
 
-	# 3. MariaDBが起動するまで待機
-	wait_for_mariadb
-
-	# 4. WordPressがまだインストールされていない場合のみ初期化
+	# 3. WordPressがまだインストールされていない場合のみ初期化
 	# wp-config.php がなければ、インストールが未実施と判定
 	if [[ ! -f "${WP_DIR}/wp-config.php" ]]; then
 		echo "WordPress is not installed. Starting setup..."
@@ -168,7 +138,7 @@ main() {
 		echo "WordPress setup completed."
 	fi
 
-	# 5. PHP-FMをフォアグラウンドで起動（PID 1として）
+	# 4. PHP-FMをフォアグラウンドで起動（PID 1として）
 	# コンテナの主プロセスとして動作し、終了時にコンテナ全体が停止する
 	echo "Starting PHP-FPM..."
 	exec "$@"
