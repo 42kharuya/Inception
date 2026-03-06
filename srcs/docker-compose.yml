@@ -1,7 +1,7 @@
 services:
   mariadb:
     container_name: mariadb
-    image: mariadb
+    image: mariadb:inception
     build:
       context: ./requirements/mariadb
       dockerfile: Dockerfile
@@ -35,7 +35,7 @@ services:
 
   wordpress:
     container_name: wordpress
-    image: wordpress
+    image: wordpress:inception
     build:
       context: ./requirements/wordpress
       dockerfile: Dockerfile
@@ -69,7 +69,7 @@ services:
 
   nginx:
     container_name: nginx
-    image: nginx
+    image: nginx:inception
     build:
       context: ./requirements/nginx
       dockerfile: Dockerfile
