@@ -16,8 +16,13 @@ services:
       - DB:/var/lib/mysql
     networks:
       - inception_network
+    # コンテナが停止したときに Docker が自動的に再起動を試みる
     restart: always
     healthcheck:
+      # MariaDB が起動していて root 認証が通るかを確認するヘルスチェック。
+      # - `mariadb-admin ping` はサーバに ping を打って応答があれば成功
+      # - パスワードは Docker secret `/run/secrets/db_root_password` から読み取る
+      # - `--silent` により余計な出力を抑える
       test:
         [
           "CMD-SHELL",
@@ -48,6 +53,10 @@ services:
       mariadb:
         condition: service_healthy
     healthcheck:
+      # CMD-SHELL: コマンドをシェル経由（典型的には /bin/sh -c）で実行する形式
+      # WordPress コンテナが「PHP-FPM が待受していて、WP が初期化済み」かを確認するヘルスチェック。
+      # - `nc -z 127.0.0.1 9000` で php-fpm(9000) のポートが開いているか確認
+      # - `wp core is-installed` で WordPress がインストール済みか確認（初回起動のブートストラップ完了判定）
       test:
         [
           "CMD-SHELL",

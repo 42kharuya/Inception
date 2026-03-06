@@ -93,6 +93,7 @@ detect_root_mysql_cli() {
 	return 1
 }
 
+# MariaDB に root として接続できていることを確認するためのアサーション関数
 assert_root_connection_detected() {
 	if [[ ${#MYSQL_CLI[@]} -eq 0 ]]; then
 		echo "ERROR: cannot connect to MariaDB as root (password may not match or server not ready)" >&2

@@ -18,13 +18,16 @@ server {
     root /var/www/html;
     index index.php index.html index.htm;
 
+    # /index.php?$args: 見つからないURLでも、WordPressに「これ処理して」と渡す
     location / {
         try_files $uri $uri/ /index.php?$args;
     }
 
     # 5. PHPリクエストをWordPressコンテナに飛ばす
     location ~ \.php$ {
+        # PHPをPHP-FPMに渡すときに必要な“定番の設定セット”を読み込む
         include snippets/fastcgi-php.conf;
+        # PHP の処理をどこにお願いするか（転送先）」を決める命令
         fastcgi_pass wordpress:9000; # サービス名:ポート番号
     }
 }
