@@ -62,6 +62,11 @@ sudo sh -c 'echo "<VM_IP>  <login>.42.fr" >> /etc/hosts'
 
 The Makefile and Compose rely on `srcs/.env`.
 
+Workflow used for submission/review:
+
+- Commit only the template file: `srcs/env.sample`
+- Create `srcs/.env` locally during evaluation (do not commit it)
+
 Important: `LOGIN` is mandatory. The Makefile will stop if it is missing.
 
 Typical variables used by the stack:
@@ -77,22 +82,11 @@ Notes:
 
 - Passwords are intentionally not stored in `srcs/.env` in this implementation; they are read from Docker secrets.
 
-Minimal example (create from scratch):
+Create `srcs/.env` from the template:
 
 ```bash
-cat > srcs/.env << 'EOF'
-LOGIN=<your_login>
-DOMAIN_NAME=<your_login>.42.fr
-
-MYSQL_DATABASE=inception_db
-MYSQL_USER=<your_login>
-
-SITE_TITLE=inception
-WP_ADMIN_USER=<admin_user_without_admin_word>
-WP_ADMIN_EMAIL=<admin_email>
-WP_USER=<your_login>
-WP_USER_EMAIL=<user_email>
-EOF
+cp srcs/env.sample srcs/.env
+${EDITOR:-vi} srcs/.env
 ```
 
 #### 2.4.2 Docker secrets (`secrets/*`)

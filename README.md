@@ -36,11 +36,17 @@ make --version
 
 ### Configure the project
 
-1) Edit the environment file:
+1) Create the environment file (not committed):
 
-- `srcs/.env`
+- Copy the template and fill values:
+	- `srcs/env.sample` → `srcs/.env`
 
-At minimum, set:
+```bash
+cp srcs/env.sample srcs/.env
+${EDITOR:-vi} srcs/.env
+```
+
+At minimum, set in `srcs/.env`:
 
 - `LOGIN=<your_login>`
 - `DOMAIN_NAME=<your_login>.42.fr`

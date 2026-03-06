@@ -4,6 +4,9 @@ credentials.txt
 db_password.txt
 db_root_password.txt
 
+# Local environment file (created from srcs/env.sample)
+srcs/.env
+
 # OS
 .DS_Store
 *.swp

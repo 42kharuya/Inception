@@ -17,7 +17,23 @@ Only nginx is exposed to the host. WordPress and MariaDB are reachable only insi
 
 All commands are run from the repository root.
 
-### 2.1 Create required secret files (first-time setup)
+### 2.1 Create the environment file (first-time setup)
+
+This project expects `srcs/.env`, but it is not meant to be committed.
+
+Create it from the template and fill values:
+
+```bash
+cp srcs/env.sample srcs/.env
+${EDITOR:-vi} srcs/.env
+```
+
+At minimum, set:
+
+- `LOGIN=<your_login>`
+- `DOMAIN_NAME=<your_login>.42.fr`
+
+### 2.2 Create required secret files (first-time setup)
 
 Before running `make up`, create the following files:
 
