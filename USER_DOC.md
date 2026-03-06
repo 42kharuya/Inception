@@ -28,10 +28,26 @@ cp srcs/env.sample srcs/.env
 ${EDITOR:-vi} srcs/.env
 ```
 
-At minimum, set:
+set:
 
-- `LOGIN=<your_login>`
-- `DOMAIN_NAME=<your_login>.42.fr`
+```text
+# MariaDB用 (パスワードはsecretsファイルから読み取ります)
+LOGIN=<your_login>
+MYSQL_DATABASE=<mysql_data_base_name>
+MYSQL_USER=<mysql_user_name>
+
+# WordPress用
+DOMAIN_NAME=<your_login>.42.fr
+SITE_TITLE=<wordpress_site_name>
+
+# 管理者
+WP_ADMIN_USER=<wordpress_admin_user_name>
+WP_ADMIN_EMAIL=<wordpress_admin_email>
+
+# 一般ユーザー
+WP_USER=<wordpress_user_name>
+WP_USER_EMAIL=<wordpress_user_email>
+```
 
 ### 2.2 Create required secret files (first-time setup)
 
@@ -48,7 +64,7 @@ Write them using one of the following patterns.
 Use this when you want deterministic passwords (for local testing) or you want to choose them yourself.
 
 ```bash
-mkdir -p secrets
+cd <root_of_project> && mkdir -p secrets
 
 # Create/edit each file (examples)
 echo -n 'your_db_root_password_here' > secrets/db_root_password.txt
