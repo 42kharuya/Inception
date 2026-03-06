@@ -3,6 +3,13 @@
 
 This document explains how to set up, build, run, and operate this Inception stack as a developer.
 
+This file is organized to match the required developer-doc topics:
+
+- Set up the environment from scratch (prereqs, config files, secrets)
+- Build and launch using the Makefile and Docker Compose
+- Commands to manage containers and volumes
+- Where data is stored and how it persists
+
 ## 1) What this project is (developer view)
 
 This repository defines a minimal WordPress infrastructure using Docker Compose:
@@ -18,14 +25,14 @@ Key implementation files:
 - `srcs/requirements/*/Dockerfile`: per-service images built from Debian bookworm.
 - `srcs/requirements/*/tools/entrypoint.sh`: runtime initialization logic (idempotent setup).
 
-## 2) Prerequisites
+## 2) Set up the environment from scratch
 
-### System / OS
+### 2.1 Prerequisites (system / OS)
 
 - Linux host (the project stores persistent data under `/home/<LOGIN>/data`).
 - A VM is typically used for the 42 evaluation.
 
-### Required software
+### 2.2 Prerequisites (required software)
 
 - Docker Engine
 - Docker Compose v2 (the `docker compose` subcommand)
@@ -39,7 +46,7 @@ docker compose version
 make --version
 ```
 
-### Domain name resolution (required for TLS + WordPress URLs)
+### 2.3 Domain name resolution (required for TLS + WordPress URLs)
 
 The stack expects a domain name (commonly `<login>.42.fr`) that resolves to the VM/host where Docker runs.
 
@@ -49,9 +56,9 @@ For local testing, you can map the domain to your VM IP (recommended) or to `127
 sudo sh -c 'echo "<VM_IP>  <login>.42.fr" >> /etc/hosts'
 ```
 
-## 3) Configuration files and secrets
+### 2.4 Configuration files and secrets
 
-### 3.1 Environment variables (`srcs/.env`)
+#### 2.4.1 Environment variables (`srcs/.env`)
 
 The Makefile and Compose rely on `srcs/.env`.
 
@@ -70,7 +77,25 @@ Notes:
 
 - Passwords are intentionally not stored in `srcs/.env` in this implementation; they are read from Docker secrets.
 
-### 3.2 Docker secrets (`secrets/*`)
+Minimal example (create from scratch):
+
+```bash
+cat > srcs/.env << 'EOF'
+LOGIN=<your_login>
+DOMAIN_NAME=<your_login>.42.fr
+
+MYSQL_DATABASE=inception_db
+MYSQL_USER=<your_login>
+
+SITE_TITLE=inception
+WP_ADMIN_USER=<admin_user_without_admin_word>
+WP_ADMIN_EMAIL=<admin_email>
+WP_USER=<your_login>
+WP_USER_EMAIL=<user_email>
+EOF
+```
+
+#### 2.4.2 Docker secrets (`secrets/*`)
 
 Secrets are provided to containers via Docker Compose `secrets:`. They are mounted as files under `/run/secrets/<name>`.
 
@@ -90,7 +115,43 @@ Secrets used:
 - `WP_ADMIN_PASSWORD=...`
 - `WP_USER_PASSWORD=...`
 
-### 3.3 Where secrets are referenced in code
+Create the required secret files (first-time setup):
+
+- `secrets/db_root_password.txt`
+- `secrets/db_password.txt`
+- `secrets/credentials.txt`
+
+Pattern A (manual values):
+
+```bash
+mkdir -p secrets
+echo -n '<db_root_password>' > secrets/db_root_password.txt
+echo -n '<db_app_password>'  > secrets/db_password.txt
+
+cat > secrets/credentials.txt << 'EOF'
+WP_ADMIN_PASSWORD=<wp_admin_password>
+WP_USER_PASSWORD=<wp_user_password>
+EOF
+
+chmod 600 secrets/*.txt
+```
+
+Pattern B (generate using OpenSSL):
+
+```bash
+mkdir -p secrets
+umask 077
+
+openssl rand -base64 32 | tr -d '\n' > secrets/db_root_password.txt
+openssl rand -base64 32 | tr -d '\n' > secrets/db_password.txt
+
+echo "WP_ADMIN_PASSWORD=$(openssl rand -base64 32)" > secrets/credentials.txt
+echo "WP_USER_PASSWORD=$(openssl rand -base64 32)" >> secrets/credentials.txt
+
+chmod 600 secrets/*.txt
+```
+
+#### 2.4.3 Where secrets are referenced in code
 
 - MariaDB healthcheck reads the root password from `/run/secrets/db_root_password`.
 - MariaDB entrypoint exports `MYSQL_ROOT_PASSWORD` and `MYSQL_PASSWORD` from the secret files.
@@ -123,11 +184,15 @@ make restart
 
 ### 4.3 Clean / full clean
 
-- Remove containers + named volumes (data may be removed depending on volume configuration):
+- Remove containers + named volumes:
 
 ```bash
 make clean
 ```
+
+- In this implementation, volumes are backed by host directories under `/home/${LOGIN}/data/*`.
+	`make clean` removes the Docker volume objects, but it does not reliably remove the host directories themselves.
+	For a guaranteed full wipe of persisted data, use `make fclean`.
 
 - Additionally delete the host data directory `/home/${LOGIN}/data`:
 
@@ -168,6 +233,14 @@ docker compose -f srcs/docker-compose.yml logs -f mariadb
 docker exec -it nginx sh
 docker exec -it wordpress bash
 docker exec -it mariadb bash
+```
+
+Alternatively (via Compose):
+
+```bash
+docker compose -f srcs/docker-compose.yml exec nginx sh
+docker compose -f srcs/docker-compose.yml exec wordpress bash
+docker compose -f srcs/docker-compose.yml exec mariadb bash
 ```
 
 ### 5.4 Health status
@@ -257,6 +330,12 @@ Entrypoint behavior:
 
 - Containers are ephemeral; you can safely recreate them.
 - Images can be rebuilt (`make rebuild`).
+
+### What each Make target does to data
+
+- `make down`: stops/removes containers, keeps volumes and host data.
+- `make clean`: removes containers and volumes (the Docker volume objects). Host directories may remain.
+- `make fclean`: removes everything above and deletes `/home/${LOGIN}/data` (guaranteed data wipe).
 
 ### Resetting the stack
 

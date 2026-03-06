@@ -17,6 +17,63 @@ Only nginx is exposed to the host. WordPress and MariaDB are reachable only insi
 
 All commands are run from the repository root.
 
+### 2.1 Create required secret files (first-time setup)
+
+Before running `make up`, create the following files:
+
+- `secrets/db_root_password.txt`
+- `secrets/db_password.txt`
+- `secrets/credentials.txt`
+
+Write them using one of the following patterns.
+
+#### Pattern A: set values manually
+
+Use this when you want deterministic passwords (for local testing) or you want to choose them yourself.
+
+```bash
+mkdir -p secrets
+
+# Create/edit each file (examples)
+echo -n 'your_db_root_password_here' > secrets/db_root_password.txt
+echo -n 'your_db_app_password_here'  > secrets/db_password.txt
+
+# credentials.txt must be KEY=VALUE lines (no spaces around '=')
+cat > secrets/credentials.txt << 'EOF'
+WP_ADMIN_PASSWORD=your_wordpress_admin_password_here
+WP_USER_PASSWORD=your_wordpress_user_password_here
+EOF
+
+# Restrict permissions
+chmod 600 secrets/*.txt
+```
+
+#### Pattern B: generate values using OpenSSL
+
+Recommended: generate strong random passwords and restrict permissions.
+
+```bash
+mkdir -p secrets
+
+# Restrictive permissions for newly created files in this shell
+umask 077
+
+# Generate DB passwords (single line)
+openssl rand -base64 32 | tr -d '\n' > secrets/db_root_password.txt
+openssl rand -base64 32 | tr -d '\n' > secrets/db_password.txt
+
+# Generate WordPress passwords (credentials.txt must be KEY=VALUE lines)
+echo "WP_ADMIN_PASSWORD=$(openssl rand -base64 32)" > secrets/credentials.txt
+echo "WP_USER_PASSWORD=$(openssl rand -base64 32)" >> secrets/credentials.txt
+
+chmod 600 secrets/*.txt
+```
+
+Notes:
+
+- `credentials.txt` must be shell-compatible (no spaces around `=`).
+- If you change these secrets after a successful first install, you may need a clean reprovision: `make fclean && make up`.
+
 ### Start
 
 ```bash
@@ -61,7 +118,7 @@ The site URL is driven by `DOMAIN_NAME` in `srcs/.env` (commonly `<login>.42.fr`
 Make sure your domain resolves to the machine running Docker (VM IP is typical). Example:
 
 ```bash
-sudo sh -c 'echo "<VM_IP>  <login>.42.fr" >> /etc/hosts'
+sudo sh -c 'echo "127.0.0.1  <login>.42.fr" >> /etc/hosts'
 ```
 
 ### 3.2 Website

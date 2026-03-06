@@ -49,7 +49,12 @@ At minimum, set:
 
 - `secrets/db_root_password.txt`
 - `secrets/db_password.txt`
-- `secrets/credentials.txt` (must define `WP_ADMIN_PASSWORD` and `WP_USER_PASSWORD`)
+- `secrets/credentials.txt` (must define `WP_ADMIN_PASSWORD` and `WP_USER_PASSWORD` as `KEY=VALUE` lines)
+
+For step-by-step secret generation examples (manual + OpenSSL), see:
+
+- [USER_DOC.md](USER_DOC.md)
+- [DEV_DOC.md](DEV_DOC.md)
 
 Security note: keep real secret values out of version control (e.g., using `.gitignore`) and recreate them locally.
 
@@ -86,9 +91,16 @@ make rebuild
 
 NGINX uses a self-signed certificate, so your browser will show a warning for local testing.
 
-## Project design choices
+More details:
 
-### Why Docker here
+- Developer operations: [DEV_DOC.md](DEV_DOC.md)
+- User/admin operations: [USER_DOC.md](USER_DOC.md)
+
+## Project description
+
+This section explains how Docker is used in this repository, what sources are included, the main design choices, and the required comparisons.
+
+### How Docker is used (and what sources are included)
 
 Docker makes it practical to:
 
@@ -96,7 +108,7 @@ Docker makes it practical to:
 - Keep NGINX/WordPress/MariaDB isolated yet connected through a private network
 - Persist data outside containers while allowing containers to be rebuilt anytime
 
-### Implementation highlights (from the source)
+Implementation highlights (from the source):
 
 - Images are built from `debian:bookworm` in:
 	- `srcs/requirements/mariadb/Dockerfile`
@@ -107,27 +119,33 @@ Docker makes it practical to:
 	- WordPress downloads/configures/installs on first run (using WP-CLI).
 	- NGINX renders config from a template and generates a self-signed cert for `DOMAIN_NAME`.
 
-## Required comparisons
+### Main design choices
 
-### Virtual Machines vs Docker
+- Only NGINX is exposed to the host (443). WordPress (9000) and MariaDB (3306) stay private inside `inception_network`.
+- Sensitive values (passwords) are provided via Docker secrets mounted under `/run/secrets/*`.
+- Persistent data is stored under `/home/${LOGIN}/data/*` via named volumes (`DB`, `WordPress`).
+
+### Required comparisons
+
+#### Virtual Machines vs Docker
 
 - **VMs** virtualize hardware: each VM runs its own kernel and full OS, which increases overhead but provides strong isolation boundaries.
 - **Docker containers** share the host kernel: they start faster, use fewer resources, and are ideal for packaging services, but isolation is lighter than a VM.
 - In this project, Docker is used to compose multiple services in a single host/VM while keeping them isolated at the process/network/filesystem level.
 
-### Secrets vs Environment Variables
+#### Secrets vs Environment Variables
 
 - **Environment variables** are easy for configuration but may be exposed via `docker inspect`, logs, process listings, or crash reports.
 - **Docker secrets** are mounted as files under `/run/secrets/*` and are designed specifically for sensitive values.
 - This project uses `srcs/.env` for non-sensitive configuration and Compose secrets for passwords.
 
-### Docker Network vs Host Network
+#### Docker Network vs Host Network
 
 - With a dedicated **Docker bridge network**, services can talk using DNS names (`mariadb`, `wordpress`) without exposing internal ports to the host.
 - **Host networking** removes network isolation and can cause port conflicts; it is also forbidden by the subject.
 - This project uses a custom bridge network called `inception_network`.
 
-### Docker Volumes vs Bind Mounts
+#### Docker Volumes vs Bind Mounts
 
 - **Docker volumes** are managed by Docker and are the recommended way to persist container data.
 - **Bind mounts** map an arbitrary host path into a container; they are powerful but tie you to host filesystem paths and permissions.
@@ -146,7 +164,10 @@ Docker makes it practical to:
 
 ### AI usage disclosure
 
-AI was used to help draft and structure the English documentation (README/DEV_DOC/USER_DOC) based on the repository’s actual Compose configuration, Dockerfiles, and entrypoint scripts. All commands, paths, and environment variables were cross-checked against the code in this repository.
+AI was used as a support tool for:
 
-No application logic was generated or modified by AI as part of the infrastructure implementation.
+- Drafting and restructuring the English documentation: [README.md](README.md), [DEV_DOC.md](DEV_DOC.md), [USER_DOC.md](USER_DOC.md)
+- Turning the official requirements into a checklist (sections/commands that must be documented)
+- Code review and compliance checks of the infrastructure sources (Dockerfiles, `srcs/docker-compose.yml`, `Makefile`, and entrypoint scripts) to spot inconsistencies, missing variables/secrets, and common container best practices
+- General implementation support (debugging suggestions, command usage, and explaining Docker/Compose concepts during development)
 
